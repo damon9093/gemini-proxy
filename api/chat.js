@@ -53,8 +53,15 @@ export default async function handler(req, res) {
       body: JSON.stringify(geminiBody),
     });
 
-    const data = await response.json();
-    console.log('GEMINI:', response.status);
+    const responseText = await response.text();
+    console.log('GEMINI RAW:', response.status, responseText.slice(0, 500));
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch(e) {
+      return res.status(500).json({ error: 'Invalid JSON from Google', raw: responseText.slice(0, 200) });
+    }
 
     if (!response.ok) return res.status(response.status).json(data);
 
