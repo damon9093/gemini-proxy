@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/proxy" }]
+  "rewrites": [
+    { "source": "/chat/completions", "destination": "/api/chat" },
+    { "source": "/v1/chat/completions", "destination": "/api/chat" },
+    { "source": "/v1beta/chat/completions", "destination": "/api/chat" },
+    { "source": "/(.*)", "destination": "/api/proxy" }
+  ]
 }
