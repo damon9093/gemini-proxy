@@ -14,7 +14,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // body رو به صورت raw بخون
     const rawBody = await new Promise((resolve, reject) => {
       let data = '';
       req.on('data', chunk => { data += chunk; });
@@ -23,7 +22,6 @@ export default async function handler(req, res) {
     });
 
     const apiKey = req.headers['authorization']?.replace('Bearer ', '');
-
     if (!apiKey) {
       return res.status(401).json({ error: 'No API key' });
     }
@@ -35,10 +33,11 @@ export default async function handler(req, res) {
     const systemMsg = messages.find(m => m.role === 'system');
     const otherMessages = messages.filter(m => m.role !== 'system');
 
+    // فقط فیلدهای مجاز
     const geminiBody = {
       contents: otherMessages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
+        parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }]
       })),
       generationConfig: {
         temperature: temperature || 0.7,
