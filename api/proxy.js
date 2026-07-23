@@ -1,3 +1,11 @@
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', '*');
@@ -8,23 +16,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = req.headers['authorization']?.replace('Bearer ', '') 
+    const apiKey = req.headers['authorization']?.replace('Bearer ', '')
       || req.query.key;
 
-    // تبدیل OpenAI format به Gemini format
-    const { model, messages, temperature, max_tokens } = req.body;
-    const geminiModel = model?.includes('gemini') ? model : 'gemini-3.5-flash';
+    if (!apiKey) {
+      return res.status(401).json({ error: 'No API key provided' });
+    }
+
+    const body = req.body;
+
+    if (!body || !body.messages) {
+      return res.status(400).json({ error: 'Invalid request body', received: body });
+    }
+
+    const { model, messages, temperature, max_tokens } = body;
+    const geminiModel = (model && model.includes('gemini')) ? model : 'gemini-3.5-flash';
 
     const geminiBody = {
-      contents: messages.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      })),
+      contents: messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        })),
       generationConfig: {
         temperature: temperature || 0.7,
         maxOutputTokens: max_tokens || 8192,
       }
     };
+
+    // system message رو به اول اضافه کن
+    const systemMsg = messages.find(m => m.role === 'system');
+    if (systemMsg) {
+      geminiBody.systemInstruction = {
+        parts: [{ text: systemMsg.content }]
+      };
+    }
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
 
@@ -40,7 +67,6 @@ export default async function handler(req, res) {
       return res.status(response.status).json(data);
     }
 
-    // تبدیل Gemini response به OpenAI format
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     return res.status(200).json({
@@ -61,6 +87,9 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ 
+      error: err.message,
+      stack: err.stack
+    });
   }
 }
