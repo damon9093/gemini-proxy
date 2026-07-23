@@ -1,34 +1,66 @@
 export default async function handler(req, res) {
-  console.log('METHOD:', req.method);
-  console.log('URL:', req.url);
-  console.log('BODY:', JSON.stringify(req.body));
-
-  const targetUrl = 'https://generativelanguage.googleapis.com' + req.url;
-
-  const headers = {};
-  if (req.headers['content-type']) 
-    headers['content-type'] = req.headers['content-type'];
-  if (req.headers['authorization']) 
-    headers['authorization'] = req.headers['authorization'];
-  if (req.headers['x-goog-api-key']) 
-    headers['x-goog-api-key'] = req.headers['x-goog-api-key'];
-
-  let body = undefined;
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    body = JSON.stringify(req.body);
-  }
-
-  const response = await fetch(targetUrl, {
-    method: req.method,
-    headers,
-    body,
-  });
-
-  const data = await response.json();
-  
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
-  
-  res.status(response.status).json(data);
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  try {
+    const apiKey = req.headers['authorization']?.replace('Bearer ', '') 
+      || req.query.key;
+
+    // تبدیل OpenAI format به Gemini format
+    const { model, messages, temperature, max_tokens } = req.body;
+    const geminiModel = model?.includes('gemini') ? model : 'gemini-3.5-flash';
+
+    const geminiBody = {
+      contents: messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      })),
+      generationConfig: {
+        temperature: temperature || 0.7,
+        maxOutputTokens: max_tokens || 8192,
+      }
+    };
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+
+    // تبدیل Gemini response به OpenAI format
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    return res.status(200).json({
+      id: 'chatcmpl-' + Date.now(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: geminiModel,
+      choices: [{
+        index: 0,
+        message: { role: 'assistant', content: text },
+        finish_reason: 'stop'
+      }],
+      usage: {
+        prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
+        completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+        total_tokens: data.usageMetadata?.totalTokenCount || 0,
+      }
+    });
+
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }
