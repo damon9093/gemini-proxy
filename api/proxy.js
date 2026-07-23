@@ -21,6 +21,9 @@ export default async function handler(req, res) {
       req.on('error', reject);
     });
 
+    // لاگ کامل body
+    console.log('RAW BODY:', rawBody);
+
     const apiKey = req.headers['authorization']?.replace('Bearer ', '');
     if (!apiKey) {
       return res.status(401).json({ error: 'No API key' });
@@ -33,7 +36,6 @@ export default async function handler(req, res) {
     const systemMsg = messages.find(m => m.role === 'system');
     const otherMessages = messages.filter(m => m.role !== 'system');
 
-    // فقط فیلدهای مجاز
     const geminiBody = {
       contents: otherMessages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
@@ -51,6 +53,8 @@ export default async function handler(req, res) {
       };
     }
 
+    console.log('GEMINI BODY:', JSON.stringify(geminiBody));
+
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
@@ -60,6 +64,7 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+    console.log('GEMINI RESPONSE:', response.status, JSON.stringify(data));
 
     if (!response.ok) {
       return res.status(response.status).json(data);
