@@ -1,8 +1,6 @@
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
+    bodyParser: false,
   },
 };
 
@@ -16,37 +14,38 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = req.headers['authorization']?.replace('Bearer ', '')
-      || req.query.key;
+    // body رو به صورت raw بخون
+    const rawBody = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => { data += chunk; });
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
+
+    const apiKey = req.headers['authorization']?.replace('Bearer ', '');
 
     if (!apiKey) {
-      return res.status(401).json({ error: 'No API key provided' });
+      return res.status(401).json({ error: 'No API key' });
     }
 
-    const body = req.body;
-
-    if (!body || !body.messages) {
-      return res.status(400).json({ error: 'Invalid request body', received: body });
-    }
-
+    const body = JSON.parse(rawBody);
     const { model, messages, temperature, max_tokens } = body;
     const geminiModel = (model && model.includes('gemini')) ? model : 'gemini-3.5-flash';
 
+    const systemMsg = messages.find(m => m.role === 'system');
+    const otherMessages = messages.filter(m => m.role !== 'system');
+
     const geminiBody = {
-      contents: messages
-        .filter(m => m.role !== 'system')
-        .map(m => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        })),
+      contents: otherMessages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      })),
       generationConfig: {
         temperature: temperature || 0.7,
         maxOutputTokens: max_tokens || 8192,
       }
     };
 
-    // system message رو به اول اضافه کن
-    const systemMsg = messages.find(m => m.role === 'system');
     if (systemMsg) {
       geminiBody.systemInstruction = {
         parts: [{ text: systemMsg.content }]
@@ -87,9 +86,6 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    return res.status(500).json({ 
-      error: err.message,
-      stack: err.stack
-    });
+    return res.status(500).json({ error: err.message });
   }
 }
