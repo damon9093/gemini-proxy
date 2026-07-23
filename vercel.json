@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/openrouter/chat/completions", "destination": "/api/openrouter" },
     { "source": "/chat/completions", "destination": "/api/chat" },
     { "source": "/v1/chat/completions", "destination": "/api/chat" },
     { "source": "/v1beta/chat/completions", "destination": "/api/chat" },
