@@ -82,8 +82,8 @@ export default async function handler(req, res) {
       }];
     }
 
-    const endpoint = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:${endpoint}&key=${apiKey}`;
+    const endpoint = stream ? 'streamGenerateContent' : 'generateContent';
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:${endpoint}?${stream ? 'alt=sse&' : ''}key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
       method: 'POST',
