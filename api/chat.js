@@ -43,9 +43,28 @@ export default async function handler(req, res) {
         }
         contents.push({ role: 'model', parts });
       } else {
+        const parts = [];
+        if (typeof m.content === 'string') {
+          parts.push({ text: m.content });
+        } else if (Array.isArray(m.content)) {
+          for (const c of m.content) {
+            if (c.type === 'text') {
+              parts.push({ text: c.text });
+            } else if (c.type === 'image_url') {
+              const url = c.image_url?.url || '';
+              if (url.startsWith('data:')) {
+                const [meta, data] = url.split(',');
+                const mimeType = meta.split(':')[1].split(';')[0];
+                parts.push({ inlineData: { mimeType, data } });
+              } else {
+                parts.push({ fileData: { mimeType: 'image/jpeg', fileUri: url } });
+              }
+            }
+          }
+        }
         contents.push({
           role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }]
+          parts
         });
       }
     }
