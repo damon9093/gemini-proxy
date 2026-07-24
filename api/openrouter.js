@@ -30,7 +30,8 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://gemini-proxy-seven-mu.vercel.app',
-        'X-Title': 'Gemini Proxy',
+        'X-Title': 'My Proxy',
+        'User-Agent': 'Mozilla/5.0',
       },
       body: rawBody,
     });
