@@ -17,23 +17,24 @@ export default async function handler(req, res) {
       req.on('error', reject);
     });
 
-    const apiKey = req.query.key || req.headers['x-goog-api-key'];
+    const apiKey = req.query.key || req.headers['x-goog-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
     if (!apiKey) return res.status(401).json({ error: 'No API key' });
 
-    // مدل TTS رو به نسخه درست تغییر بده
-    let targetPath = req.url;
-    targetPath = targetPath.replace(
-      'gemini-2.5-flash-preview-tts',
-      'gemini-3.1-flash-tts-preview'
-    );
+    // اطمینان از اینکه /v1beta داره
+    let path = req.url;
+    if (!path.startsWith('/v1beta')) {
+      path = '/v1beta' + path;
+    }
 
-    const targetUrl = `https://generativelanguage.googleapis.com${targetPath}`;
-
+    const targetUrl = `https://generativelanguage.googleapis.com${path}`;
     console.log('TTS URL:', targetUrl);
 
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
       body: rawBody || undefined,
     });
 
