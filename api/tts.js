@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     let targetPath = req.url;
     targetPath = targetPath.replace(
       'gemini-2.5-flash-preview-tts',
-      'gemini-2.5-flash-preview-tts-exp'
+      'gemini-3.1-flash-tts-preview'
     );
 
     const targetUrl = `https://generativelanguage.googleapis.com${targetPath}`;
