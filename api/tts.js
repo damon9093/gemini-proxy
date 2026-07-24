@@ -1,5 +1,6 @@
 export const config = {
   api: { bodyParser: false },
+  maxDuration: 60,
 };
 
 function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
