@@ -17,24 +17,27 @@ export default async function handler(req, res) {
       req.on('error', reject);
     });
 
-    const apiKey = req.query.key || req.headers['x-goog-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+    const apiKey = req.query.key 
+      || req.headers['x-goog-api-key'] 
+      || req.headers['authorization']?.replace('Bearer ', '');
     if (!apiKey) return res.status(401).json({ error: 'No API key' });
 
+    // فقط pathname بگیر بدون query string
+    const { URL } = await import('url');
+    const parsed = new URL(req.url, 'http://localhost');
+    let pathname = parsed.pathname;
+
     // اطمینان از اینکه /v1beta داره
-    let path = req.url;
-    if (!path.startsWith('/v1beta')) {
-      path = '/v1beta' + path;
+    if (!pathname.startsWith('/v1beta')) {
+      pathname = '/v1beta' + pathname;
     }
 
-    const targetUrl = `https://generativelanguage.googleapis.com${path}`;
+    const targetUrl = `https://generativelanguage.googleapis.com${pathname}?key=${apiKey}`;
     console.log('TTS URL:', targetUrl);
 
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: rawBody || undefined,
     });
 
