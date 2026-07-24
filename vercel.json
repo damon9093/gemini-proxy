@@ -1,9 +1,11 @@
 {
   "rewrites": [
-    { "source": "/openrouter/chat/completions", "destination": "/api/openrouter" },
     { "source": "/chat/completions", "destination": "/api/chat" },
     { "source": "/v1/chat/completions", "destination": "/api/chat" },
     { "source": "/v1beta/chat/completions", "destination": "/api/chat" },
+    { "source": "/openrouter/chat/completions", "destination": "/api/openrouter" },
+    { "source": "/models/:path*", "destination": "/api/tts" },
+    { "source": "/v1beta/models/:path*", "destination": "/api/tts" },
     { "source": "/(.*)", "destination": "/api/proxy" }
   ]
 }
