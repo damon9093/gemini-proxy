@@ -28,11 +28,9 @@ export default async function handler(req, res) {
     const systemMsg = messages.find(m => m.role === 'system');
     const otherMessages = messages.filter(m => m.role !== 'system');
 
-    // تبدیل messages به فرمت Gemini
     const contents = [];
     for (const m of otherMessages) {
       if (m.role === 'tool') {
-        // tool result
         contents.push({
           role: 'user',
           parts: [{
@@ -43,7 +41,6 @@ export default async function handler(req, res) {
           }]
         });
       } else if (m.role === 'assistant' && m.tool_calls) {
-        // assistant tool call
         const parts = [];
         if (m.content) parts.push({ text: m.content });
         for (const tc of m.tool_calls) {
@@ -75,7 +72,6 @@ export default async function handler(req, res) {
       geminiBody.systemInstruction = { parts: [{ text: systemMsg.content }] };
     }
 
-    // تبدیل tools به فرمت Gemini
     if (tools && tools.length > 0) {
       geminiBody.tools = [{
         functionDeclarations: tools.map(t => ({
@@ -123,7 +119,6 @@ export default async function handler(req, res) {
             const finishReason = chunk.candidates?.[0]?.finishReason;
 
             if (part?.functionCall) {
-              // tool call chunk
               const sseData = {
                 id: 'chatcmpl-' + Date.now(),
                 object: 'chat.completion.chunk',
@@ -143,7 +138,7 @@ export default async function handler(req, res) {
                       }
                     }]
                   },
-                  finish_reason: 'tool_calls'
+                  finish_reason: null
                 }]
               };
               res.write(`data: ${JSON.stringify(sseData)}\n\n`);
@@ -162,13 +157,17 @@ export default async function handler(req, res) {
               res.write(`data: ${JSON.stringify(sseData)}\n\n`);
             }
 
-            if (finishReason === 'STOP' || finishReason === 'MAX_TOKENS') {
+            if (finishReason === 'STOP' || finishReason === 'MAX_TOKENS' || finishReason === 'FUNCTION_CALL') {
               const finalData = {
                 id: 'chatcmpl-' + Date.now(),
                 object: 'chat.completion.chunk',
                 created: Math.floor(Date.now() / 1000),
                 model: geminiModel,
-                choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
+                choices: [{
+                  index: 0,
+                  delta: {},
+                  finish_reason: finishReason === 'FUNCTION_CALL' ? 'tool_calls' : 'stop'
+                }]
               };
               res.write(`data: ${JSON.stringify(finalData)}\n\n`);
               res.write('data: [DONE]\n\n');
@@ -194,7 +193,6 @@ export default async function handler(req, res) {
       const parts = candidate?.content?.parts || [];
       const finishReason = candidate?.finishReason;
 
-      // چک کن tool call هست یا نه
       const functionCall = parts.find(p => p.functionCall);
       if (functionCall) {
         return res.status(200).json({
